@@ -1,96 +1,153 @@
-// ================== Phần bài tập AI: giữ nguyên logic của bạn ==================
 let currentQuestions = [];
-let practiceRoundByTopic = {}; // lưu vòng luyện tập theo từng chủ đề
+let wrongQuestions = [];
+let practiceRound = 0;
+const MAX_PRACTICE_ROUND = 3;
 
-document.getElementById("generateQuiz").addEventListener("click", () => {
+// ================== HÀM TRỘN MẢNG ==================
+function shuffleArray(arr) {
+  return arr
+    .map(v => ({ v, s: Math.random() }))
+    .sort((a, b) => a.s - b.s)
+    .map(({ v }) => v);
+}
+
+// ================== TẠO BÀI ==================
+document.getElementById("generateQuiz").onclick = () => {
   const topic = document.getElementById("topic").value;
-  currentQuestions = getQuizFromAI(topic);
+
+  currentQuestions = shuffleArray(getQuizFromAI(topic));
+  wrongQuestions = [];
+  practiceRound = 0;
+
   renderQuiz(currentQuestions);
 
   document.getElementById("submitQuiz").disabled = false;
   document.getElementById("results").hidden = true;
-  document.getElementById("practiceButton").hidden = true;
+};
 
-  // reset vòng luyện tập cho chủ đề hiện tại
-  practiceRoundByTopic[topic] = 0;
-});
-
-document.getElementById("submitQuiz").addEventListener("click", () => {
-  checkAnswers();
-});
-
+// ================== HIỂN THỊ CÂU HỎI ==================
 function renderQuiz(questions) {
-  const container = document.getElementById("quizContainer");
-  container.innerHTML = "";
-  questions.forEach((q, index) => {
+  const box = document.getElementById("quizContainer");
+  box.innerHTML = "";
+
+  questions.forEach((q, i) => {
     const div = document.createElement("div");
-    div.classList.add("question");
-    div.innerHTML = `
-      <p><b>Câu ${index + 1}:</b> ${q.question}</p>
-      ${Object.entries(q.options).map(([key, val]) =>
-        `<label class="option"><input type="radio" name="q${index}" value="${key}"> ${key}. ${val}</label>`
-      ).join("")}
-    `;
-    container.appendChild(div);
+    div.className = "question";
+    div.dataset.index = i;
+
+    div.innerHTML = `<p><b>Câu ${i + 1} (${q.level}):</b> ${q.question}</p>`;
+
+    // ===== CHỌN ĐÁP ÁN =====
+    if (q.type === "choice") {
+      const options = shuffleArray(
+        q.options.map((opt, idx) => ({
+          text: opt,
+          index: idx
+        }))
+      );
+
+      options.forEach(opt => {
+        div.innerHTML += `
+          <label class="option">
+            <input type="radio" name="q${i}" value="${opt.index}">
+            ${opt.text}
+          </label><br>`;
+      });
+    }
+
+    // ===== ĐIỀN KHUYẾT =====
+    if (q.type === "fill_blank") {
+      div.innerHTML += `<input type="text" id="q${i}" />`;
+    }
+
+    // ===== GHÉP ĐÔI =====
+    if (q.type === "match") {
+      div.innerHTML += `
+        <div><b>Cột A</b><br>${q.left.join("<br>")}</div>
+        <div><b>Cột B</b><br>${q.right.join("<br>")}</div>
+        <input type="text" id="q${i}" placeholder="VD: 1-b,2-a" />
+      `;
+    }
+
+    box.appendChild(div);
   });
 }
 
+// ================== NỘP BÀI ==================
+document.getElementById("submitQuiz").onclick = () => {
+  checkAnswers();
+};
+
+// ================== CHẤM BÀI ==================
 function checkAnswers() {
-  let score = 0;
-  const explanations = document.getElementById("explanations");
-  explanations.innerHTML = "";
+  let correct = 0;
+  wrongQuestions = [];
 
-  const selectedTopic = document.getElementById("topic").value;
-  let hasWrong = false;
+  currentQuestions.forEach((q, i) => {
+    let ok = false;
 
-  currentQuestions.forEach((q, index) => {
-    const selected = document.querySelector(`input[name="q${index}"]:checked`);
-    if (selected && selected.value === q.answer) {
-      score++;
-      selected.parentElement.classList.add("correct");
-    } else {
-      hasWrong = true;
-      if (selected) selected.parentElement.classList.add("incorrect");
+    // ===== CHOICE =====
+    if (q.type === "choice") {
+      const sel = document.querySelector(`input[name="q${i}"]:checked`);
+      if (sel && Number(sel.value) === q.answer) ok = true;
+      if (sel) sel.parentElement.style.background = ok ? "#4CAF50" : "#f44336";
     }
 
-    const ex = document.createElement("div");
-    ex.classList.add("ex-item");
-    ex.innerHTML = `<b>Câu ${index + 1}:</b> ${q.explanation}`;
-    explanations.appendChild(ex);
+    // ===== FILL BLANK =====
+    if (q.type === "fill_blank") {
+      const input = document.getElementById(`q${i}`);
+      const val = input.value.trim().toLowerCase();
+      ok = val === q.answer;
+      input.style.background = ok ? "#4CAF50" : "#f44336";
+    }
+
+    // ===== MATCH =====
+    if (q.type === "match") {
+      const input = document.getElementById(`q${i}`);
+      const val = input.value.replace(/\s/g, "");
+      ok = JSON.stringify(val.split(",")) === JSON.stringify(q.answer);
+      input.style.background = ok ? "#4CAF50" : "#f44336";
+    }
+
+    if (ok) {
+      correct++;
+    } else {
+      wrongQuestions.push(q);
+    }
   });
 
-  document.getElementById("scoreSummary").innerText = `🎯 Bạn đúng ${score}/${currentQuestions.length} câu`;
+  const total = currentQuestions.length;
+  const wrong = total - correct;
+
+  // ===== HIỂN THỊ KẾT QUẢ =====
+  document.getElementById("scoreSummary").innerHTML = `
+    <p>✅ Đúng: <b>${correct}</b> / ${total}</p>
+    <p>❌ Sai: <b>${wrong}</b> / ${total}</p>
+    <p>🔁 Vòng luyện: ${practiceRound} / ${MAX_PRACTICE_ROUND}</p>
+  `;
   document.getElementById("results").hidden = false;
 
-  const practiceButton = document.getElementById("practiceButton");
-  if (hasWrong) {
-    practiceButton.hidden = false;
-    practiceButton.onclick = () => {
-      practiceRoundByTopic[selectedTopic] = (practiceRoundByTopic[selectedTopic] || 0) + 1;
-      const round = practiceRoundByTopic[selectedTopic];
-
-      const practiceSet = getPracticeFromAI(selectedTopic, round);
-      if (practiceSet.length > 0) {
-        currentQuestions = JSON.parse(JSON.stringify(practiceSet));
-        const container = document.getElementById("quizContainer");
-        container.innerHTML = `<h3>🔁 Luyện tập cá nhân hóa – Vòng ${round}</h3>`;
-        renderQuiz(currentQuestions);
-
-        document.getElementById("submitQuiz").disabled = false;
-        practiceButton.hidden = true;
-        document.getElementById("results").hidden = true;
-      } else {
-        practiceButton.hidden = true;
-        alert("Bạn đã hoàn thành 3 vòng luyện tập cho chủ đề này!");
-      }
-    };
+  // ===== NÚT LUYỆN TIẾP =====
+  const btn = document.getElementById("practiceButton");
+  if (wrong > 0 && practiceRound < MAX_PRACTICE_ROUND) {
+    btn.hidden = false;
+    btn.onclick = startPractice;
   } else {
-    practiceButton.hidden = true;
-    const container = document.getElementById("quizContainer");
-    container.innerHTML += `<p>🎉 Bạn đã làm đúng tất cả! Không cần luyện thêm.</p>`;
+    btn.hidden = true;
   }
 }
 
+// ================== LUYỆN TIẾP ==================
+function startPractice() {
+  practiceRound++;
+
+  // 👉 Luyện LẠI TOÀN BỘ câu sai
+  currentQuestions = shuffleArray(wrongQuestions);
+  wrongQuestions = [];
+
+  renderQuiz(currentQuestions);
+  document.getElementById("results").hidden = true;
+}
 // ================== Phần Đố vui: CHỈ SỬA để chia 15 câu thành 3 vòng ==================
 const funQuestions = [
   { question: "Tại sao khi nấu canh cua lại thấy váng nổi lên?", options: ["Do protein đông tụ","Do dầu ăn nổi lên","Do muối kết tủa","Do nước bốc hơi"], answer: [0], explanation: "Protein trong cua đông lại khi gặp nhiệt, tạo thành váng nổi lên." },
