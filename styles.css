@@ -235,3 +235,31 @@ button.incorrect {
   color: #fff !important;
   border: 2px solid #c62828 !important;
 }
+/* ===== NHÓM NÚT HÀNH ĐỘNG ===== */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== NÚT MICRO ===== */
+#micBtn {
+  height: 42px;              /* cùng chiều cao với Tạo bài tập */
+  min-width: 42px;
+  padding: 0 12px;
+  border-radius: 10px;       /* bo góc đồng bộ */
+  font-size: 20px;
+  border: 2px solid #6f42c1; /* tím cùng tông app */
+  background: white;
+  color: #6f42c1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+#micBtn:hover {
+  background: #6f42c1;
+  color: white;
+}
+
+#micBtn:active {
+  transform: scale(0.95);
+}
