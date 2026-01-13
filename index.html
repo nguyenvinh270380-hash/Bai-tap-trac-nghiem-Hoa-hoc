@@ -9,74 +9,136 @@
   <link rel="manifest" href="manifest.json" />
 
   <style>
-    .btn-mic {
-      background: #4f46e5;
-      color: #fff;
+    .btn.option { margin: 5px 5px 5px 0; }
+    .option.correct { background-color: #4CAF50; color: white; }
+    .option.incorrect { background-color: #f44336; color: white; }
+    .next-round {
+      margin-top: 15px;
+      background-color: #2196F3;
+      color: white;
       border: none;
-      border-radius: 50%;
-      width: 56px;
-      height: 56px;
-      font-size: 22px;
+      padding: 5px 10px;
+      border-radius: 4px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
     }
-    .btn-mic.active { background: #16a34a; }
-    .mic-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .mic-label {
-      font-size: 13px;
-      margin-top: 6px;
-      color: #333;
+    .next-round:hover { background-color: #0b7dda; }
+    .btn-mic {
+      background: #fff;
+      border: 2px solid #4f46e5;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      font-size: 18px;
+      cursor: pointer;
     }
   </style>
 </head>
 
 <body>
   <header class="app-header">
-    <h1>APP BÀI TẬP TRẮC NGHIỆM HÓA HỌC</h1>
+    <div class="header-layout">
+      <div class="logo-box">
+        <img src="assets/images/logo.png" alt="Logo trường" class="logo" />
+      </div>
+      <div class="text-box">
+        <div class="text-inner">
+          <p class="school-name">
+            TRƯỜNG TH VÀ THCS CÀ NÀNG, XÃ MƯỜNG CHIÊN, TỈNH SƠN LA
+          </p>
+          <h1 class="app-title">APP BÀI TẬP TRẮC NGHIỆM HÓA HỌC</h1>
+          <p class="app-slogan">
+            *Hóa học là cây cầu nối giữa khoa học và cuộc sống*
+          </p>
+          <p class="app-slogan">
+            *Hiểu được Hóa học là hiểu thế giới vận hành như thế nào*
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="bubble-zone"></div>
   </header>
 
   <main class="app-main">
     <section class="panel">
-      <label>🔍 Chọn chủ đề:</label>
-      <select id="topic">
+      <label for="topic" class="form-label">🔍 Chọn chủ đề:</label>
+      <select id="topic" class="select">
         <option value="BTKL">Định luật BTKL</option>
         <option value="Cân bằng PTHH">Cân bằng PTHH</option>
         <option value="Liên kết hóa học">Liên kết hóa học</option>
       </select>
 
       <div class="actions">
-        <!-- 🔘 NÚT DUY NHẤT -->
-        <div class="mic-wrap">
-          <button id="micBtn" class="btn-mic">🎤</button>
-          <div class="mic-label">Chạm để nói</div>
-        </div>
+        <!-- NÚT MICRO – GIỮ NGUYÊN -->
+        <button id="micBtn" class="btn-mic" title="Nói để ra lệnh">🎤</button>
+
+        <button id="generateQuiz" class="btn primary">🧬 Tạo bài tập</button>
+        <button id="submitQuiz" class="btn success" disabled>📤 Nộp bài</button>
+        <button id="funQuiz" class="btn fun">🎯 Đố vui</button>
       </div>
     </section>
 
-    <section id="quizContainer"></section>
+    <section id="quizContainer" class="quiz"></section>
+
+    <section id="results" class="results" hidden>
+      <h2>Kết quả</h2>
+      <div id="scoreSummary"></div>
+      <div id="explanations"></div>
+      <button id="practiceButton" class="btn" hidden>🔁 Luyện tiếp</button>
+    </section>
   </main>
 
-  <!-- CORE -->
+  <audio id="clapSound" preload="auto">
+    <source src="assets/sounds/clap.mp3" type="audio/mpeg" />
+  </audio>
+
+  <audio id="ehSound" preload="auto">
+    <source src="assets/sounds/eh.mp3" type="audio/mpeg" />
+  </audio>
+
+  <!-- CORE LOGIC (KHÔNG ĐỘNG) -->
+  <script src="js/aiHelper.js" defer></script>
+  <script src="js/quiz.js" defer></script>
+
+  <!-- AI INTENT + VOICE CONTROLLER -->
   <script src="js/engine/intentEngine.js"></script>
   <script src="js/voiceAndSimulation.js"></script>
 
-  <!-- 🔑 GỘP OVERLAY + MICRO -->
+  <!-- ================================================= -->
+  <!-- 🔧 PATCH DUY NHẤT: MỞ KHÓA GIỌNG + NGHE LỆNH -->
+  <!-- KHÔNG ĐỔI CSS – KHÔNG ĐỔI HTML -->
+  <!-- ================================================= -->
   <script>
-    const micBtn = document.getElementById("micBtn");
-    let unlocked = false;
+    (function () {
+      const micBtn = document.getElementById("micBtn");
+      let unlocked = false;
 
-    micBtn.addEventListener("click", () => {
-      if (!unlocked) {
-        enableVoice();        // 🔓 mở khóa audio
-        unlocked = true;
-        micBtn.classList.add("active");
-      }
-      startListening();       // 🎤 bắt đầu nghe lệnh
-    });
+      micBtn.addEventListener("click", function () {
+        // 🔓 mở khóa audio cho Chrome / QR
+        if (!unlocked && window.enableVoice) {
+          enableVoice();
+          unlocked = true;
+        }
+        // 🎤 bắt đầu nghe lệnh
+        if (window.startListening) {
+          startListening();
+        }
+      });
+    })();
+  </script>
+
+  <!-- HIỆU ỨNG BONG BÓNG -->
+  <script>
+    function createAtomBubble() {
+      const bubble = document.createElement("div");
+      const atoms = ["O", "H", "N", "C"];
+      bubble.classList.add("atom-bubble");
+      bubble.textContent = atoms[Math.floor(Math.random() * atoms.length)];
+      bubble.style.left = Math.random() * window.innerWidth + "px";
+      bubble.style.animationDuration = (6 + Math.random() * 4) + "s";
+      document.querySelector(".bubble-zone").appendChild(bubble);
+      setTimeout(() => bubble.remove(), 10000);
+    }
+    setInterval(createAtomBubble, 800);
   </script>
 </body>
 </html>
